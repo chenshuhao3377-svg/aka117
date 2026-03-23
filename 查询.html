@@ -119,13 +119,12 @@
         </div>
     </div>
 
-    <!-- 改用兼容的 Firebase 8 版本 SDK（不会出现 import/export 错误） -->
+    <!-- Firebase 8.x 兼容版 SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
     <script>
         window.onload = function() {
-            // Firebase 配置（你的项目信息）
             const firebaseConfig = {
                 apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
                 authDomain: "fir-001-f26d9.firebaseapp.com",
@@ -135,19 +134,13 @@
                 appId: "1:944028774180:web:3bf07903a20c52b6120db1"
             };
 
-            // 初始化 Firebase
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
             }
             const db = firebase.firestore();
 
-            // 固定账号密码
-            const FIXED_USER = {
-                id: "1816561717",
-                password: "xxx2351554"
-            };
+            const FIXED_USER = { id: "1816561717", password: "xxx2351554" };
 
-            // 获取页面元素
             const els = {
                 loginBtn: document.getElementById('loginBtn'),
                 logoutBtn: document.getElementById('logoutBtn'),
@@ -165,26 +158,24 @@
             els.loginBtn.onclick = function() {
                 const inputID = els.userID.value.trim();
                 const inputPwd = els.userPwd.value.trim();
-
                 if (!inputID || !inputPwd) {
                     els.authTip.innerText = "账号和密码不能为空！";
                     return;
                 }
-
                 if (inputID === FIXED_USER.id && inputPwd === FIXED_USER.password) {
-                    els.authTip.innerText = `登录成功！欢迎使用系统（${inputID}）`;
+                    els.authTip.innerText = `登录成功！（${inputID}）`;
                     els.logoutBtn.classList.remove('hidden');
                     els.recordArea.classList.remove('hidden');
                     els.userPwd.value = "";
                     localStorage.setItem('isLogin', 'true');
                 } else {
-                    els.authTip.innerText = "账号或密码错误！仅允许指定账号登录";
+                    els.authTip.innerText = "账号或密码错误！";
                 }
             };
 
             // 退出登录
             els.logoutBtn.onclick = function() {
-                els.authTip.innerText = "已成功退出登录！";
+                els.authTip.innerText = "已退出登录！";
                 els.logoutBtn.classList.add('hidden');
                 els.recordArea.classList.add('hidden');
                 els.recordList.innerHTML = "";
@@ -192,36 +183,38 @@
                 localStorage.removeItem('isLogin');
             };
 
-            // 保存记录到 Firestore（云端）
+            // 保存记录（优化错误提示）
             els.saveRecordBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
-                    return alert("请先登录系统！");
+                    alert("请先登录！");
+                    return;
                 }
                 const content = els.recordContent.value.trim();
                 if (!content) {
-                    return alert("请输入要记录的内容！");
+                    alert("请输入要记录的内容！");
+                    return;
                 }
-
                 db.collection("fixed_user_records").add({
                     userId: FIXED_USER.id,
                     content: content,
                     createTime: firebase.firestore.FieldValue.serverTimestamp()
                 })
                 .then(() => {
-                    alert("记录保存成功！");
+                    alert("✅ 记录保存成功！");
                     els.recordContent.value = "";
                 })
                 .catch(err => {
-                    alert("保存失败：" + err.message);
+                    console.error("保存失败：", err);
+                    alert("❌ 保存失败：" + err.message);
                 });
             };
 
-            // 从 Firestore 读取记录（云端）
+            // 查看记录（优化错误提示）
             els.getRecordsBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
-                    return alert("请先登录系统！");
+                    alert("请先登录！");
+                    return;
                 }
-
                 db.collection("fixed_user_records")
                     .where("userId", "==", FIXED_USER.id)
                     .orderBy("createTime", "desc")
@@ -240,18 +233,19 @@
                         els.recordList.innerHTML = html;
                     })
                     .catch(err => {
-                        alert("获取记录失败：" + err.message);
+                        console.error("获取记录失败：", err);
+                        alert("❌ 获取记录失败：" + err.message);
                     });
             };
 
-            // 页面刷新保持登录状态
+            // 保持登录状态
             if (localStorage.getItem('isLogin') === 'true') {
                 els.authTip.innerText = `当前已登录：${FIXED_USER.id}`;
                 els.logoutBtn.classList.remove('hidden');
                 els.recordArea.classList.remove('hidden');
             }
 
-            console.log("✅ 云端版系统初始化完成！");
+            console.log("✅ 系统初始化完成！");
         };
     </script>
 </body>
