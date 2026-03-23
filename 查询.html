@@ -119,8 +119,28 @@
         </div>
     </div>
 
+    <!-- 改用兼容的 Firebase 8 版本 SDK（不会出现 import/export 错误） -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
     <script>
         window.onload = function() {
+            // Firebase 配置（你的项目信息）
+            const firebaseConfig = {
+                apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
+                authDomain: "fir-001-f26d9.firebaseapp.com",
+                projectId: "fir-001-f26d9",
+                storageBucket: "fir-001-f26d9.firebasestorage.app",
+                messagingSenderId: "944028774180",
+                appId: "1:944028774180:web:3bf07903a20c52b6120db1"
+            };
+
+            // 初始化 Firebase
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            const db = firebase.firestore();
+
             // 固定账号密码
             const FIXED_USER = {
                 id: "1816561717",
@@ -172,7 +192,7 @@
                 localStorage.removeItem('isLogin');
             };
 
-            // 保存记录（存在本地 localStorage）
+            // 保存记录到 Firestore（云端）
             els.saveRecordBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
                     return alert("请先登录系统！");
@@ -182,33 +202,46 @@
                     return alert("请输入要记录的内容！");
                 }
 
-                // 读取现有记录
-                let records = JSON.parse(localStorage.getItem('fixed_user_records') || '[]');
-                records.push({
+                db.collection("fixed_user_records").add({
+                    userId: FIXED_USER.id,
                     content: content,
-                    createTime: new Date().toLocaleString()
+                    createTime: firebase.firestore.FieldValue.serverTimestamp()
+                })
+                .then(() => {
+                    alert("记录保存成功！");
+                    els.recordContent.value = "";
+                })
+                .catch(err => {
+                    alert("保存失败：" + err.message);
                 });
-                // 保存回 localStorage
-                localStorage.setItem('fixed_user_records', JSON.stringify(records));
-                alert("记录保存成功！");
-                els.recordContent.value = "";
             };
 
-            // 查看记录
+            // 从 Firestore 读取记录（云端）
             els.getRecordsBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
                     return alert("请先登录系统！");
                 }
-                let records = JSON.parse(localStorage.getItem('fixed_user_records') || '[]');
-                if (records.length === 0) {
-                    els.recordList.innerHTML = "<p>暂无记录</p>";
-                    return;
-                }
-                let html = "";
-                records.forEach((item, idx) => {
-                    html += `<p>${idx+1}. ${item.content} <small>${item.createTime}</small></p>`;
-                });
-                els.recordList.innerHTML = html;
+
+                db.collection("fixed_user_records")
+                    .where("userId", "==", FIXED_USER.id)
+                    .orderBy("createTime", "desc")
+                    .get()
+                    .then(snapshot => {
+                        if (snapshot.empty) {
+                            els.recordList.innerHTML = "<p>暂无记录</p>";
+                            return;
+                        }
+                        let html = "";
+                        snapshot.forEach((doc, idx) => {
+                            const data = doc.data();
+                            const time = data.createTime ? new Date(data.createTime.seconds * 1000).toLocaleString() : "未知时间";
+                            html += `<p>${idx+1}. ${data.content} <small>${time}</small></p>`;
+                        });
+                        els.recordList.innerHTML = html;
+                    })
+                    .catch(err => {
+                        alert("获取记录失败：" + err.message);
+                    });
             };
 
             // 页面刷新保持登录状态
@@ -218,7 +251,7 @@
                 els.recordArea.classList.remove('hidden');
             }
 
-            console.log("✅ 系统初始化完成，无 Firebase 依赖！");
+            console.log("✅ 云端版系统初始化完成！");
         };
     </script>
 </body>
