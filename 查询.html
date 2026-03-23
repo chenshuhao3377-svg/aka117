@@ -2,183 +2,201 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>我的个人问题记录库</title>
+    <title>查询工具（Firebase 账号+记录）</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-        body {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 0 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 20px;
-        }
-        .search-box {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        .add-form {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 30px;
-        }
-        input, textarea {
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 15px;
-        }
-        textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        button {
-            padding: 12px;
-            background: #4285f4;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background: #3367d6;
-        }
-        .issue-item {
-            padding: 15px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            margin-bottom: 12px;
-        }
-        .issue-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #4285f4;
-            margin-bottom: 8px;
-        }
-        .issue-desc {
-            color: #666;
-            margin-bottom: 10px;
-            line-height: 1.5;
-        }
-        .delete-btn {
-            background: #ff4444;
-            padding: 6px 12px;
-            font-size: 14px;
-        }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; font-family: Arial; }
+        .auth-area, .record-area { margin: 20px 0; padding: 15px; border: 1px solid #eee; border-radius: 8px; }
+        input { padding: 8px; margin: 5px 0; width: 220px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 8px 16px; margin: 5px 0; border: none; border-radius: 4px; cursor: pointer; background: #2196F3; color: white; }
+        button:hover { background: #1976D2; }
+        #logoutBtn { background: #f44336; }
+        #logoutBtn:hover { background: #d32f2f; }
+        .hidden { display: none; }
+        #recordList { margin-top: 10px; padding: 10px; border-top: 1px dashed #ddd; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📝 个人问题记录与查询库</h1>
-
-        <!-- 搜索框 -->
-        <input type="text" class="search-box" id="searchInput" placeholder="🔍 搜索问题关键词..." oninput="searchIssues()">
-
-        <!-- 添加问题表单 -->
-        <div class="add-form">
-            <input type="text" id="title" placeholder="问题标题（例如：Python 报错 ModuleNotFound）">
-            <textarea id="desc" placeholder="问题描述 + 解决方案"></textarea>
-            <button onclick="addIssue()">✅ 保存问题</button>
+        <h2>查询工具（带账号和记录功能）</h2>
+        
+        <!-- 账号登录/注册区域 -->
+        <div class="auth-area">
+            <h3>账号管理</h3>
+            用户名（邮箱）：<input type="email" id="userEmail" placeholder="请输入邮箱"><br>
+            密码：<input type="password" id="userPwd" placeholder="至少6位密码"><br>
+            <button onclick="register()">注册账号</button>
+            <button onclick="login()">登录账号</button>
+            <button id="logoutBtn" onclick="logout()" class="hidden">退出登录</button>
+            <p id="authTip" style="color: #666; font-size: 14px;"></p>
         </div>
 
-        <!-- 问题列表 -->
-        <div id="issueList"></div>
+        <!-- 数据记录区域（登录后显示） -->
+        <div class="record-area hidden" id="recordArea">
+            <h3>数据记录</h3>
+            要记录的内容：<input type="text" id="recordContent" placeholder="输入要保存的内容"><br>
+            <button onclick="saveRecord()">保存记录</button>
+            <button onclick="getMyRecords()">查看我的记录</button>
+            <div id="recordList"></div>
+        </div>
     </div>
 
+    <!-- 引入 Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+
     <script>
-        // 初始化：从浏览器本地存储读取数据
-        let issues = JSON.parse(localStorage.getItem('myIssues')) || [];
+        // 1. 初始化 Firebase（已替换为你的配置）
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
+            authDomain: "fir-001-f26d9.firebaseapp.com",
+            projectId: "fir-001-f26d9",
+            storageBucket: "fir-001-f26d9.firebasestorage.app",
+            messagingSenderId: "944028774180",
+            appId: "1:944028774180:web:3bf07903a20c52b6120db1"
+        };
 
-        // 渲染所有问题
-        renderIssues();
+        // 初始化 Firebase 应用
+        firebase.initializeApp(firebaseConfig);
+        // 初始化 认证 和 数据库 服务
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-        // 添加问题
-        function addIssue() {
-            const title = document.getElementById('title').value.trim();
-            const desc = document.getElementById('desc').value.trim();
+        // 2. 注册账号功能
+        function register() {
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPwd').value;
             
-            if (!title || !desc) {
-                alert('请填写完整内容！');
+            // 简单校验
+            if (!email || !password) {
+                document.getElementById('authTip').innerText = "邮箱和密码不能为空！";
+                return;
+            }
+            if (password.length < 6) {
+                document.getElementById('authTip').innerText = "密码至少6位！";
                 return;
             }
 
-            const newIssue = {
-                id: Date.now(),
-                title,
-                desc,
-                time: new Date().toLocaleString()
-            };
-
-            issues.unshift(newIssue); // 最新的放最上面
-            saveIssues();
-            renderIssues();
-
-            // 清空输入框
-            document.getElementById('title').value = '';
-            document.getElementById('desc').value = '';
-            alert('问题保存成功！');
+            // Firebase 注册逻辑
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    document.getElementById('authTip').innerText = "注册成功！已自动登录";
+                    showRecordArea(); // 显示记录区域
+                })
+                .catch((error) => {
+                    document.getElementById('authTip').innerText = "注册失败：" + error.message;
+                });
         }
 
-        // 保存到本地存储
-        function saveIssues() {
-            localStorage.setItem('myIssues', JSON.stringify(issues));
+        // 3. 登录账号功能
+        function login() {
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPwd').value;
+
+            if (!email || !password) {
+                document.getElementById('authTip').innerText = "请输入邮箱和密码！";
+                return;
+            }
+
+            // Firebase 登录逻辑
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    document.getElementById('authTip').innerText = "登录成功！";
+                    showRecordArea(); // 显示记录区域
+                })
+                .catch((error) => {
+                    document.getElementById('authTip').innerText = "登录失败：" + error.message;
+                });
         }
 
-        // 渲染问题列表
-        function renderIssues(filteredList = issues) {
-            const listEl = document.getElementById('issueList');
-            listEl.innerHTML = '';
-
-            filteredList.forEach(issue => {
-                const div = document.createElement('div');
-                div.className = 'issue-item';
-                div.innerHTML = `
-                    <div class="issue-title">${issue.title}</div>
-                    <div class="issue-desc">${issue.desc}</div>
-                    <small>${issue.time}</small>
-                    <button class="delete-btn" onclick="deleteIssue(${issue.id})">删除</button>
-                `;
-                listEl.appendChild(div);
+        // 4. 退出登录功能
+        function logout() {
+            auth.signOut().then(() => {
+                document.getElementById('authTip').innerText = "已退出登录！";
+                document.getElementById('logoutBtn').classList.add('hidden');
+                document.getElementById('recordArea').classList.add('hidden');
+                document.getElementById('recordList').innerText = "";
+            }).catch((error) => {
+                document.getElementById('authTip').innerText = "退出失败：" + error.message;
             });
         }
 
-        // 删除问题
-        function deleteIssue(id) {
-            if (!confirm('确定删除这条记录吗？')) return;
-            issues = issues.filter(item => item.id !== id);
-            saveIssues();
-            renderIssues();
+        // 5. 保存记录到 Firestore
+        function saveRecord() {
+            const content = document.getElementById('recordContent').value;
+            const user = auth.currentUser; // 获取当前登录用户
+
+            if (!content) {
+                alert("请输入要记录的内容！");
+                return;
+            }
+            if (!user) {
+                alert("请先登录！");
+                return;
+            }
+
+            // 向 Firestore 写入数据（自动创建 records 集合）
+            db.collection("records").add({
+                userId: user.uid, // 关联当前用户ID（确保只能看自己的记录）
+                content: content,
+                createTime: firebase.firestore.FieldValue.serverTimestamp() // 服务器时间
+            })
+            .then((docRef) => {
+                alert("记录保存成功！");
+                document.getElementById('recordContent').value = ""; // 清空输入框
+            })
+            .catch((error) => {
+                alert("保存失败：" + error.message);
+            });
         }
 
-        // 搜索问题
-        function searchIssues() {
-            const keyword = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = issues.filter(item => 
-                item.title.toLowerCase().includes(keyword) || 
-                item.desc.toLowerCase().includes(keyword)
-            );
-            renderIssues(filtered);
+        // 6. 获取当前用户的所有记录
+        function getMyRecords() {
+            const user = auth.currentUser;
+            if (!user) {
+                alert("请先登录！");
+                return;
+            }
+
+            // 查询当前用户的记录（按时间倒序）
+            db.collection("records")
+                .where("userId", "==", user.uid)
+                .orderBy("createTime", "desc")
+                .get()
+                .then((querySnapshot) => {
+                    let recordHtml = "";
+                    if (querySnapshot.empty) {
+                        recordHtml = "暂无记录";
+                    } else {
+                        querySnapshot.forEach((doc, index) => {
+                            const data = doc.data();
+                            // 格式化时间（如果有）
+                            const time = data.createTime ? new Date(data.createTime.seconds * 1000).toLocaleString() : "未知时间";
+                            recordHtml += `<p>${index+1}. ${data.content} <small style="color:#999;">(${time})</small></p>`;
+                        });
+                    }
+                    document.getElementById('recordList').innerHTML = recordHtml;
+                })
+                .catch((error) => {
+                    alert("获取记录失败：" + error.message);
+                });
         }
+
+        // 辅助函数：显示记录区域和退出按钮
+        function showRecordArea() {
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('recordArea').classList.remove('hidden');
+        }
+
+        // 监听用户登录状态（页面刷新后保持状态）
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('authTip').innerText = "当前已登录：" + user.email;
+                showRecordArea();
+            } else {
+                document.getElementById('authTip').innerText = "请先登录/注册";
+            }
+        });
     </script>
 </body>
 </html>
