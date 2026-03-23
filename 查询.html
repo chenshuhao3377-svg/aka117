@@ -183,7 +183,7 @@
                 localStorage.removeItem('isLogin');
             };
 
-            // 保存记录（优化错误提示）
+            // 保存记录
             els.saveRecordBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
                     alert("请先登录！");
@@ -209,26 +209,37 @@
                 });
             };
 
-            // 查看记录（优化错误提示）
+            // 查看记录（绕开索引，前端排序）
             els.getRecordsBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
                     alert("请先登录！");
                     return;
                 }
+                // 只按 userId 过滤，不排序，绕开索引
                 db.collection("fixed_user_records")
                     .where("userId", "==", FIXED_USER.id)
-                    .orderBy("createTime", "desc")
                     .get()
                     .then(snapshot => {
                         if (snapshot.empty) {
                             els.recordList.innerHTML = "<p>暂无记录</p>";
                             return;
                         }
-                        let html = "";
-                        snapshot.forEach((doc, idx) => {
+                        // 把数据转成数组，在前端按时间倒序排序
+                        let records = [];
+                        snapshot.forEach(doc => {
                             const data = doc.data();
-                            const time = data.createTime ? new Date(data.createTime.seconds * 1000).toLocaleString() : "未知时间";
-                            html += `<p>${idx+1}. ${data.content} <small>${time}</small></p>`;
+                            records.push({
+                                content: data.content,
+                                createTime: data.createTime || new Date(0)
+                            });
+                        });
+                        // 按创建时间降序排序（最新的在前面）
+                        records.sort((a, b) => b.createTime - a.createTime);
+                        
+                        let html = "";
+                        records.forEach((item, idx) => {
+                            const time = item.createTime.toDate ? item.createTime.toDate().toLocaleString() : "未知时间";
+                            html += `<p>${idx+1}. ${item.content} <small>${time}</small></p>`;
                         });
                         els.recordList.innerHTML = html;
                     })
