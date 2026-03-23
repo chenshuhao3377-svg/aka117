@@ -101,7 +101,6 @@
     <div class="container">
         <h2>查询工具（固定账号登录）</h2>
         
-        <!-- 仅保留登录区域，禁用注册 -->
         <div class="auth-area">
             <h3>账号登录</h3>
             <input type="text" id="userID" placeholder="请输入登录ID（固定：1816561717）">
@@ -111,7 +110,6 @@
             <p id="authTip">请使用指定账号密码登录</p>
         </div>
 
-        <!-- 数据记录区域（登录后显示） -->
         <div class="record-area hidden" id="recordArea">
             <h3>数据记录</h3>
             <input type="text" id="recordContent" placeholder="请输入要记录的内容">
@@ -121,35 +119,15 @@
         </div>
     </div>
 
-    <!-- 引入 Firebase SDK（仅保留 Firestore 用于记录功能） -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
-
     <script>
         window.onload = function() {
-            // 1. Firebase 配置（仅用于数据记录）
-            const firebaseConfig = {
-                apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
-                authDomain: "fir-001-f26d9.firebaseapp.com",
-                projectId: "fir-001-f26d9",
-                storageBucket: "fir-001-f26d9.firebasestorage.app",
-                messagingSenderId: "944028774180",
-                appId: "1:944028774180:web:3bf07903a20c52b6120db1"
-            };
-
-            // 初始化 Firebase
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            const db = firebase.firestore();
-
-            // 2. 固定账号密码配置（核心修改）
+            // 固定账号密码
             const FIXED_USER = {
                 id: "1816561717",
                 password: "xxx2351554"
             };
 
-            // 3. 获取页面元素
+            // 获取页面元素
             const els = {
                 loginBtn: document.getElementById('loginBtn'),
                 logoutBtn: document.getElementById('logoutBtn'),
@@ -163,106 +141,84 @@
                 getRecordsBtn: document.getElementById('getRecordsBtn')
             };
 
-            // 4. 固定账号登录逻辑（禁用 Firebase 注册/登录，改用本地验证）
+            // 登录逻辑
             els.loginBtn.onclick = function() {
                 const inputID = els.userID.value.trim();
                 const inputPwd = els.userPwd.value.trim();
 
-                // 空值校验
                 if (!inputID || !inputPwd) {
-                    return els.authTip.innerText = "账号和密码不能为空！";
+                    els.authTip.innerText = "账号和密码不能为空！";
+                    return;
                 }
 
-                // 验证固定账号密码
                 if (inputID === FIXED_USER.id && inputPwd === FIXED_USER.password) {
                     els.authTip.innerText = `登录成功！欢迎使用系统（${inputID}）`;
                     els.logoutBtn.classList.remove('hidden');
                     els.recordArea.classList.remove('hidden');
-                    els.userPwd.value = ""; // 清空密码
-                    // 标记登录状态
+                    els.userPwd.value = "";
                     localStorage.setItem('isLogin', 'true');
                 } else {
                     els.authTip.innerText = "账号或密码错误！仅允许指定账号登录";
                 }
             };
 
-            // 5. 退出登录
+            // 退出登录
             els.logoutBtn.onclick = function() {
                 els.authTip.innerText = "已成功退出登录！";
                 els.logoutBtn.classList.add('hidden');
                 els.recordArea.classList.add('hidden');
                 els.recordList.innerHTML = "";
                 els.userID.value = "";
-                // 清除登录状态
                 localStorage.removeItem('isLogin');
             };
 
-            // 6. 保存记录（关联固定账号ID）
+            // 保存记录（存在本地 localStorage）
             els.saveRecordBtn.onclick = function() {
-                // 校验登录状态
                 if (localStorage.getItem('isLogin') !== 'true') {
                     return alert("请先登录系统！");
                 }
-
                 const content = els.recordContent.value.trim();
                 if (!content) {
                     return alert("请输入要记录的内容！");
                 }
 
-                // 写入 Firestore（用固定ID标识数据归属）
-                db.collection("fixed_user_records").add({
-                    userId: FIXED_USER.id, // 关联固定账号
+                // 读取现有记录
+                let records = JSON.parse(localStorage.getItem('fixed_user_records') || '[]');
+                records.push({
                     content: content,
-                    createTime: firebase.firestore.FieldValue.serverTimestamp()
-                })
-                .then(() => {
-                    alert("记录保存成功！");
-                    els.recordContent.value = "";
-                })
-                .catch(err => {
-                    alert("保存失败：" + err.message);
+                    createTime: new Date().toLocaleString()
                 });
+                // 保存回 localStorage
+                localStorage.setItem('fixed_user_records', JSON.stringify(records));
+                alert("记录保存成功！");
+                els.recordContent.value = "";
             };
 
-            // 7. 查看记录（仅查询固定账号的数据）
+            // 查看记录
             els.getRecordsBtn.onclick = function() {
                 if (localStorage.getItem('isLogin') !== 'true') {
                     return alert("请先登录系统！");
                 }
-
-                db.collection("fixed_user_records")
-                    .where("userId", "==", FIXED_USER.id)
-                    .orderBy("createTime", "desc")
-                    .get()
-                    .then(snapshot => {
-                        if (snapshot.empty) {
-                            els.recordList.innerHTML = "<p>暂无记录</p>";
-                            return;
-                        }
-
-                        let html = "";
-                        snapshot.forEach((doc, idx) => {
-                            const data = doc.data();
-                            const time = data.createTime 
-                                ? new Date(data.createTime.seconds * 1000).toLocaleString() 
-                                : "未知时间";
-                            html += `<p>${idx+1}. ${data.content} <small>${time}</small></p>`;
-                        });
-                        els.recordList.innerHTML = html;
-                    })
-                    .catch(err => {
-                        alert("获取记录失败：" + err.message);
-                    });
+                let records = JSON.parse(localStorage.getItem('fixed_user_records') || '[]');
+                if (records.length === 0) {
+                    els.recordList.innerHTML = "<p>暂无记录</p>";
+                    return;
+                }
+                let html = "";
+                records.forEach((item, idx) => {
+                    html += `<p>${idx+1}. ${item.content} <small>${item.createTime}</small></p>`;
+                });
+                els.recordList.innerHTML = html;
             };
 
-            // 8. 页面刷新后保持登录状态
+            // 页面刷新保持登录状态
             if (localStorage.getItem('isLogin') === 'true') {
                 els.authTip.innerText = `当前已登录：${FIXED_USER.id}`;
                 els.logoutBtn.classList.remove('hidden');
                 els.recordArea.classList.remove('hidden');
             }
 
-            console.log("✅ 固定账号登录系统初始化完成！");
+            console.log("✅ 系统初始化完成，无 Firebase 依赖！");
         };
     </script>
 </body>
