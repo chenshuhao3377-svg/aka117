@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的个人问题记录库</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .add-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+        input, textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            padding: 12px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #3367d6;
+        }
+        .issue-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .issue-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4285f4;
+            margin-bottom: 8px;
+        }
+        .issue-desc {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .delete-btn {
+            background: #ff4444;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 个人问题记录与查询库</h1>
+
+        <!-- 搜索框 -->
+        <input type="text" class="search-box" id="searchInput" placeholder="🔍 搜索问题关键词..." oninput="searchIssues()">
+
+        <!-- 添加问题表单 -->
+        <div class="add-form">
+            <input type="text" id="title" placeholder="问题标题（例如：Python 报错 ModuleNotFound）">
+            <textarea id="desc" placeholder="问题描述 + 解决方案"></textarea>
+            <button onclick="addIssue()">✅ 保存问题</button>
+        </div>
+
+        <!-- 问题列表 -->
+        <div id="issueList"></div>
+    </div>
+
+    <script>
+        // 初始化：从浏览器本地存储读取数据
+        let issues = JSON.parse(localStorage.getItem('myIssues')) || [];
+
+        // 渲染所有问题
+        renderIssues();
+
+        // 添加问题
+        function addIssue() {
+            const title = document.getElementById('title').value.trim();
+            const desc = document.getElementById('desc').value.trim();
+            
+            if (!title || !desc) {
+                alert('请填写完整内容！');
+                return;
+            }
+
+            const newIssue = {
+                id: Date.now(),
+                title,
+                desc,
+                time: new Date().toLocaleString()
+            };
+
+            issues.unshift(newIssue); // 最新的放最上面
+            saveIssues();
+            renderIssues();
+
+            // 清空输入框
+            document.getElementById('title').value = '';
+            document.getElementById('desc').value = '';
+            alert('问题保存成功！');
+        }
+
+        // 保存到本地存储
+        function saveIssues() {
+            localStorage.setItem('myIssues', JSON.stringify(issues));
+        }
+
+        // 渲染问题列表
+        function renderIssues(filteredList = issues) {
+            const listEl = document.getElementById('issueList');
+            listEl.innerHTML = '';
+
+            filteredList.forEach(issue => {
+                const div = document.createElement('div');
+                div.className = 'issue-item';
+                div.innerHTML = `
+                    <div class="issue-title">${issue.title}</div>
+                    <div class="issue-desc">${issue.desc}</div>
+                    <small>${issue.time}</small>
+                    <button class="delete-btn" onclick="deleteIssue(${issue.id})">删除</button>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        // 删除问题
+        function deleteIssue(id) {
+            if (!confirm('确定删除这条记录吗？')) return;
+            issues = issues.filter(item => item.id !== id);
+            saveIssues();
+            renderIssues();
+        }
+
+        // 搜索问题
+        function searchIssues() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = issues.filter(item => 
+                item.title.toLowerCase().includes(keyword) || 
+                item.desc.toLowerCase().includes(keyword)
+            );
+            renderIssues(filtered);
+        }
+    </script>
+</body>
+</html>
