@@ -89,7 +89,6 @@
 <body>
 
 <div class="container">
-
     <div class="box" id="loginBox">
         <h3>登录</h3>
         <input type="text" id="loginId" placeholder="请输入账号">
@@ -124,7 +123,6 @@
             <button onclick="nextPage()">下一页</button>
         </div>
     </div>
-
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -145,6 +143,7 @@ if (!firebase.apps.length) {
 }
 const db = firebase.firestore();
 
+// 固定账号（全设备共用）
 const MY_ID = "1816561717";
 const MY_PWD = "xxx2351554";
 
@@ -199,11 +198,11 @@ function saveItem() {
     });
 }
 
-// ====================== ✅ 查询全部（已修复：无索引） ======================
+// ====================== ✅ 查询全部（强制读云端，永远互通） ======================
 function loadAllData() {
     db.collection("items")
         .where("userId", "==", MY_ID)
-        .get({ source: "server" })
+        .get({ source: "server" }) // 强制读云端，不读缓存
         .then(snap => {
             totalData = [];
             snap.forEach(doc => {
@@ -215,19 +214,19 @@ function loadAllData() {
                 });
             });
 
-            // 前端排序，不依靠 Firestore orderBy → 永远不需要索引
+            // 前端排序（最新在前）
             totalData.sort((a, b) => {
-                if (!a.createTime) return 1;
-                if (!b.createTime) return -1;
-                return b.createTime.seconds - a.createTime.seconds;
+                let t1 = a.createTime ? a.createTime.seconds : 0;
+                let t2 = b.createTime ? b.createTime.seconds : 0;
+                return t2 - t1;
             });
 
             currentPage = 1;
             showPageData();
-        });
+        }).catch(err => console.log(err));
 }
 
-// ====================== 标题搜索 ======================
+// ====================== ✅ 标题搜索（强制读云端） ======================
 function searchByTitle() {
     let key = document.getElementById("searchKey").value.trim().toLowerCase();
     if (!key) return alert("请输入关键词");
@@ -239,7 +238,8 @@ function searchByTitle() {
             totalData = [];
             snap.forEach(doc => {
                 let d = doc.data();
-                if ((d.title || "").toLowerCase().includes(key)) {
+                let title = (d.title || "").toLowerCase();
+                if (title.includes(key)) {
                     totalData.push({
                         title: d.title,
                         content: d.content,
@@ -249,9 +249,9 @@ function searchByTitle() {
             });
 
             totalData.sort((a, b) => {
-                if (!a.createTime) return 1;
-                if (!b.createTime) return -1;
-                return b.createTime.seconds - a.createTime.seconds;
+                let t1 = a.createTime ? a.createTime.seconds : 0;
+                let t2 = b.createTime ? b.createTime.seconds : 0;
+                return t2 - t1;
             });
 
             currentPage = 1;
@@ -259,18 +259,13 @@ function searchByTitle() {
         });
 }
 
-// ====================== 分页展示 ======================
+// ====================== 分页 ======================
 function showPageData() {
-    let listBox = document.getElementById("listBox");
-    let pageBox = document.getElementById("pageBox");
-    let pageNum = document.getElementById("pageNum");
-
     let start = (currentPage - 1) * PAGE_SIZE;
     let end = start + PAGE_SIZE;
     let pageData = totalData.slice(start, end);
-
-    pageNum.textContent = currentPage;
-    pageBox.classList.remove("hidden");
+    document.getElementById("pageNum").textContent = currentPage;
+    document.getElementById("pageBox").classList.remove("hidden");
 
     let html = "";
     if (pageData.length === 0) {
@@ -288,7 +283,7 @@ function showPageData() {
             </div>`;
         });
     }
-    listBox.innerHTML = html;
+    document.getElementById("listBox").innerHTML = html;
 }
 
 function prevPage() {
@@ -306,6 +301,5 @@ function nextPage() {
     }
 }
 </script>
-
 </body>
 </html>
