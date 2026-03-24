@@ -15,13 +15,11 @@
         .item{padding:10px;border-bottom:1px solid #ddd;}
         .item h4{margin-bottom:5px;}
         .item p{color:#555;font-size:14px;}
-        .page{margin-top:10px;}
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 登录 -->
     <div class="card" id="loginPage">
         <h3>登录</h3>
         <input type="text" id="uid" placeholder="账号">
@@ -29,7 +27,6 @@
         <button onclick="login()">登录</button>
     </div>
 
-    <!-- 功能 -->
     <div class="card hide" id="mainPage">
         <button class="btn-red" onclick="logout()">退出登录</button>
         <br><br>
@@ -45,7 +42,6 @@
         <button onclick="getAll()">查询全部</button>
         
         <div id="list" style="margin-top:15px;"></div>
-        <div class="page" id="page"></div>
     </div>
 </div>
 
@@ -53,7 +49,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
-// 配置
 const firebaseConfig = {
     apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
     authDomain: "fir-001-f26d9.firebaseapp.com",
@@ -68,35 +63,28 @@ const db = firebase.firestore();
 
 const USER_ID = "1816561717";
 const USER_PWD = "xxx2351554";
-const PAGE_SIZE = 10;
-let currentPage = 1;
 let dataList = [];
 
-// 登录
 function login() {
     let id = document.getElementById("uid").value.trim();
     let p = document.getElementById("pwd").value.trim();
     if (id === USER_ID && p === USER_PWD) {
-        localStorage.setItem("login", "ok");
+        localStorage.setItem("login","ok");
         showMain();
-    } else {
-        alert("账号密码错误");
-    }
+    } else alert("账号密码错误");
 }
 
-// 退出
 function logout() {
     localStorage.removeItem("login");
     location.reload();
 }
 
-// 显示主界面
 function showMain() {
     document.getElementById("loginPage").classList.add("hide");
     document.getElementById("mainPage").classList.remove("hide");
 }
 
-// 保存（手机最稳）
+// 保存
 function saveData() {
     let t = document.getElementById("title").value.trim();
     let c = document.getElementById("content").value.trim();
@@ -107,19 +95,18 @@ function saveData() {
         title: t,
         content: c,
         createTime: new Date()
-    }).then(() => {
+    }).then(()=>{
         alert("保存成功");
-        document.getElementById("title").value = "";
-        document.getElementById("content").value = "";
+        document.getElementById("title").value="";
+        document.getElementById("content").value="";
     });
 }
 
-// 查询全部（手机必通）
+// 查询全部（无索引，无排序）
 function getAll() {
-    db.collection("items").where("userId", "==", USER_ID).get().then(s => {
-        dataList = [];
-        s.forEach(d => dataList.push(d.data()));
-        dataList.sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+    db.collection("items").where("userId","==",USER_ID).get().then(s=>{
+        dataList=[];
+        s.forEach(d=>dataList.push(d.data()));
         render();
     });
 }
@@ -127,34 +114,26 @@ function getAll() {
 // 搜索
 function search() {
     let k = document.getElementById("kw").value.trim().toLowerCase();
-    db.collection("items").where("userId", "==", USER_ID).get().then(s => {
-        dataList = [];
-        s.forEach(d => {
-            let dt = d.data();
-            if (dt.title.toLowerCase().includes(k)) dataList.push(dt);
+    db.collection("items").where("userId","==",USER_ID).get().then(s=>{
+        dataList=[];
+        s.forEach(d=>{
+            let dt=d.data();
+            if(dt.title.toLowerCase().includes(k)) dataList.push(dt);
         });
         render();
     });
 }
 
-// 渲染
 function render() {
-    let list = document.getElementById("list");
-    let start = (currentPage - 1) * PAGE_SIZE;
-    let end = start + PAGE_SIZE;
-    let pageData = dataList.slice(start, end);
-
-    let html = "";
-    pageData.forEach(i => {
-        html += `<div class="item"><h4>${i.title}</h4><p>${i.content}</p></div>`;
+    let html="";
+    dataList.forEach(i=>{
+        html+=`<div class="item"><h4>${i.title}</h4><p>${i.content}</p></div>`;
     });
-    list.innerHTML = html;
-    document.getElementById("page").innerText = `第 ${currentPage} 页 / 共 ${Math.ceil(dataList.length / PAGE_SIZE)} 页`;
+    document.getElementById("list").innerHTML=html;
 }
 
-// 初始化
-window.onload = () => {
-    if (localStorage.getItem("login") === "ok") showMain();
+window.onload=()=>{
+    if(localStorage.getItem("login")==="ok") showMain();
 };
 </script>
 </body>
