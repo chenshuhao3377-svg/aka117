@@ -3,125 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>固定账号记录系统</title>
+    <title>记录系统</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "Microsoft Yahei", Arial, sans-serif;
-        }
-        .container {
-            max-width: 700px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-        .box {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        button {
-            padding: 10px 16px;
-            margin: 6px 4px 6px 0;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            background: #007bff;
-            color: #fff;
-            font-size: 14px;
-        }
-        button.danger {
-            background: #dc3545;
-        }
-        button.gray {
-            background: #6c757d;
-        }
-        .hidden {
-            display: none !important;
-        }
-        .tip {
-            margin: 10px 0;
-            color: #333;
-            font-size: 14px;
-        }
-        .item {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 8px;
-        }
-        .item h4 {
-            font-size: 16px;
-            margin-bottom: 4px;
-            color: #222;
-        }
-        .item p {
-            font-size: 14px;
-            color: #555;
-            margin-bottom: 4px;
-            white-space: pre-line;
-        }
-        .item small {
-            font-size: 12px;
-            color: #999;
-        }
-        .page-box {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .search-bar {
-            margin-bottom: 10px;
-        }
+        *{box-sizing:border-box;font-family:Arial;margin:0;padding:0;}
+        .container{max-width:500px;margin:30px auto;padding:0 15px;}
+        .card{background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:15px;}
+        input{width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:6px;}
+        button{padding:10px 14px;margin:5px 2px;border:none;border-radius:6px;background:#007bff;color:white;cursor:pointer;}
+        .btn-red{background:#dc3545;}
+        .hide{display:none;}
+        .item{padding:10px;border-bottom:1px solid #ddd;}
+        .item h4{margin-bottom:5px;}
+        .item p{color:#555;font-size:14px;}
+        .page{margin-top:10px;}
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="box" id="loginBox">
+    <!-- 登录 -->
+    <div class="card" id="loginPage">
         <h3>登录</h3>
-        <input type="text" id="loginId" placeholder="请输入账号">
-        <input type="password" id="loginPwd" placeholder="请输入密码">
-        <button onclick="doLogin()">登录</button>
-        <div class="tip" id="tip"></div>
+        <input type="text" id="uid" placeholder="账号">
+        <input type="password" id="pwd" placeholder="密码">
+        <button onclick="login()">登录</button>
     </div>
 
-    <div class="hidden" id="logoutBox">
-        <button class="danger" onclick="doLogout()">退出登录</button>
-    </div>
-
-    <div class="box hidden" id="mainBox">
+    <!-- 功能 -->
+    <div class="card hide" id="mainPage">
+        <button class="btn-red" onclick="logout()">退出登录</button>
+        <br><br>
         <h3>新增记录</h3>
         <input type="text" id="title" placeholder="标题">
         <input type="text" id="content" placeholder="内容">
-        <button onclick="saveItem()">保存这条记录</button>
+        <button onclick="saveData()">保存</button>
 
-        <hr style="margin:20px 0">
-
-        <h3>查询记录</h3>
-        <div class="search-bar">
-            <input type="text" id="searchKey" placeholder="按标题模糊搜索">
-            <button onclick="searchByTitle()">搜索标题</button>
-            <button class="gray" onclick="loadAllData()">查询全部</button>
-        </div>
-
-        <div id="listBox"></div>
-        <div class="page-box hidden" id="pageBox">
-            <button onclick="prevPage()">上一页</button>
-            <span>第 <span id="pageNum">1</span> 页</span>
-            <button onclick="nextPage()">下一页</button>
-        </div>
+        <br><br>
+        <h3>查询</h3>
+        <input type="text" id="kw" placeholder="搜索标题">
+        <button onclick="search()">搜索</button>
+        <button onclick="getAll()">查询全部</button>
+        
+        <div id="list" style="margin-top:15px;"></div>
+        <div class="page" id="page"></div>
     </div>
 </div>
 
@@ -129,6 +53,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
+// 配置
 const firebaseConfig = {
     apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
     authDomain: "fir-001-f26d9.firebaseapp.com",
@@ -138,59 +63,50 @@ const firebaseConfig = {
     appId: "1:944028774180:web:3bf07903a20c52b6120db1"
 };
 
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 固定账号（全设备共用）
-const MY_ID = "1816561717";
-const MY_PWD = "xxx2351554";
-
+const USER_ID = "1816561717";
+const USER_PWD = "xxx2351554";
 const PAGE_SIZE = 10;
 let currentPage = 1;
-let totalData = [];
+let dataList = [];
 
-// ====================== 登录 ======================
-function doLogin() {
-    let id = document.getElementById("loginId").value.trim();
-    let pwd = document.getElementById("loginPwd").value.trim();
-    if (id === MY_ID && pwd === MY_PWD) {
-        localStorage.setItem("logined", "true");
-        renderAfterLogin();
+// 登录
+function login() {
+    let id = document.getElementById("uid").value.trim();
+    let p = document.getElementById("pwd").value.trim();
+    if (id === USER_ID && p === USER_PWD) {
+        localStorage.setItem("login", "ok");
+        showMain();
     } else {
-        document.getElementById("tip").textContent = "账号或密码错误";
+        alert("账号密码错误");
     }
 }
 
-function doLogout() {
-    localStorage.removeItem("logined");
+// 退出
+function logout() {
+    localStorage.removeItem("login");
     location.reload();
 }
 
-function renderAfterLogin() {
-    document.getElementById("loginBox").classList.add("hidden");
-    document.getElementById("logoutBox").classList.remove("hidden");
-    document.getElementById("mainBox").classList.remove("hidden");
+// 显示主界面
+function showMain() {
+    document.getElementById("loginPage").classList.add("hide");
+    document.getElementById("mainPage").classList.remove("hide");
 }
 
-window.onload = function () {
-    if (localStorage.getItem("logined") === "true") {
-        renderAfterLogin();
-    }
-};
-
-// ====================== 保存 ======================
-function saveItem() {
-    let title = document.getElementById("title").value.trim();
-    let content = document.getElementById("content").value.trim();
-    if (!title || !content) return alert("标题和内容不能为空");
+// 保存（手机最稳）
+function saveData() {
+    let t = document.getElementById("title").value.trim();
+    let c = document.getElementById("content").value.trim();
+    if (!t || !c) return alert("标题和内容不能为空");
 
     db.collection("items").add({
-        userId: MY_ID,
-        title: title,
-        content: content,
-        createTime: firebase.firestore.FieldValue.serverTimestamp()
+        userId: USER_ID,
+        title: t,
+        content: c,
+        createTime: new Date()
     }).then(() => {
         alert("保存成功");
         document.getElementById("title").value = "";
@@ -198,108 +114,48 @@ function saveItem() {
     });
 }
 
-// ====================== ✅ 查询全部（强制读云端，永远互通） ======================
-function loadAllData() {
-    db.collection("items")
-        .where("userId", "==", MY_ID)
-        .get({ source: "server" }) // 强制读云端，不读缓存
-        .then(snap => {
-            totalData = [];
-            snap.forEach(doc => {
-                let d = doc.data();
-                totalData.push({
-                    title: d.title || "",
-                    content: d.content || "",
-                    createTime: d.createTime || null
-                });
-            });
-
-            // 前端排序（最新在前）
-            totalData.sort((a, b) => {
-                let t1 = a.createTime ? a.createTime.seconds : 0;
-                let t2 = b.createTime ? b.createTime.seconds : 0;
-                return t2 - t1;
-            });
-
-            currentPage = 1;
-            showPageData();
-        }).catch(err => console.log(err));
+// 查询全部（手机必通）
+function getAll() {
+    db.collection("items").where("userId", "==", USER_ID).get().then(s => {
+        dataList = [];
+        s.forEach(d => dataList.push(d.data()));
+        dataList.sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+        render();
+    });
 }
 
-// ====================== ✅ 标题搜索（强制读云端） ======================
-function searchByTitle() {
-    let key = document.getElementById("searchKey").value.trim().toLowerCase();
-    if (!key) return alert("请输入关键词");
-
-    db.collection("items")
-        .where("userId", "==", MY_ID)
-        .get({ source: "server" })
-        .then(snap => {
-            totalData = [];
-            snap.forEach(doc => {
-                let d = doc.data();
-                let title = (d.title || "").toLowerCase();
-                if (title.includes(key)) {
-                    totalData.push({
-                        title: d.title,
-                        content: d.content,
-                        createTime: d.createTime
-                    });
-                }
-            });
-
-            totalData.sort((a, b) => {
-                let t1 = a.createTime ? a.createTime.seconds : 0;
-                let t2 = b.createTime ? b.createTime.seconds : 0;
-                return t2 - t1;
-            });
-
-            currentPage = 1;
-            showPageData();
+// 搜索
+function search() {
+    let k = document.getElementById("kw").value.trim().toLowerCase();
+    db.collection("items").where("userId", "==", USER_ID).get().then(s => {
+        dataList = [];
+        s.forEach(d => {
+            let dt = d.data();
+            if (dt.title.toLowerCase().includes(k)) dataList.push(dt);
         });
+        render();
+    });
 }
 
-// ====================== 分页 ======================
-function showPageData() {
+// 渲染
+function render() {
+    let list = document.getElementById("list");
     let start = (currentPage - 1) * PAGE_SIZE;
     let end = start + PAGE_SIZE;
-    let pageData = totalData.slice(start, end);
-    document.getElementById("pageNum").textContent = currentPage;
-    document.getElementById("pageBox").classList.remove("hidden");
+    let pageData = dataList.slice(start, end);
 
     let html = "";
-    if (pageData.length === 0) {
-        html = "<p>暂无数据</p>";
-    } else {
-        pageData.forEach(item => {
-            let time = item.createTime
-                ? new Date(item.createTime.seconds * 1000).toLocaleString()
-                : "无时间";
-            html += `
-            <div class="item">
-                <h4>${item.title}</h4>
-                <p>${item.content}</p>
-                <small>${time}</small>
-            </div>`;
-        });
-    }
-    document.getElementById("listBox").innerHTML = html;
+    pageData.forEach(i => {
+        html += `<div class="item"><h4>${i.title}</h4><p>${i.content}</p></div>`;
+    });
+    list.innerHTML = html;
+    document.getElementById("page").innerText = `第 ${currentPage} 页 / 共 ${Math.ceil(dataList.length / PAGE_SIZE)} 页`;
 }
 
-function prevPage() {
-    if (currentPage > 1) {
-        currentPage--;
-        showPageData();
-    }
-}
-
-function nextPage() {
-    let maxPage = Math.ceil(totalData.length / PAGE_SIZE);
-    if (currentPage < maxPage) {
-        currentPage++;
-        showPageData();
-    }
-}
+// 初始化
+window.onload = () => {
+    if (localStorage.getItem("login") === "ok") showMain();
+};
 </script>
 </body>
 </html>
