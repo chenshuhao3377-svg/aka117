@@ -90,7 +90,6 @@
 
 <div class="container">
 
-    <!-- 登录区域（登录成功后整体隐藏） -->
     <div class="box" id="loginBox">
         <h3>登录</h3>
         <input type="text" id="loginId" placeholder="请输入账号">
@@ -99,12 +98,10 @@
         <div class="tip" id="tip"></div>
     </div>
 
-    <!-- 退出按钮（登录后才显示） -->
     <div class="hidden" id="logoutBox">
         <button class="danger" onclick="doLogout()">退出登录</button>
     </div>
 
-    <!-- 功能区域（登录后显示） -->
     <div class="box hidden" id="mainBox">
         <h3>新增记录</h3>
         <input type="text" id="title" placeholder="标题">
@@ -134,7 +131,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
-// ====================== 配置 ======================
 const firebaseConfig = {
     apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
     authDomain: "fir-001-f26d9.firebaseapp.com",
@@ -149,30 +145,22 @@ if (!firebase.apps.length) {
 }
 const db = firebase.firestore();
 
-// 固定账号
 const MY_ID = "1816561717";
 const MY_PWD = "xxx2351554";
 
-// 分页
 const PAGE_SIZE = 10;
 let currentPage = 1;
 let totalData = [];
 
-// ====================== 登录 / 退出 ======================
+// ====================== 登录 ======================
 function doLogin() {
     let id = document.getElementById("loginId").value.trim();
     let pwd = document.getElementById("loginPwd").value.trim();
-    let tip = document.getElementById("tip");
-
-    if (!id || !pwd) {
-        tip.textContent = "账号密码不能为空";
-        return;
-    }
     if (id === MY_ID && pwd === MY_PWD) {
         localStorage.setItem("logined", "true");
         renderAfterLogin();
     } else {
-        tip.textContent = "账号或密码错误";
+        document.getElementById("tip").textContent = "账号或密码错误";
     }
 }
 
@@ -181,29 +169,23 @@ function doLogout() {
     location.reload();
 }
 
-// 登录后：隐藏登录框，显示主界面 + 退出
 function renderAfterLogin() {
     document.getElementById("loginBox").classList.add("hidden");
     document.getElementById("logoutBox").classList.remove("hidden");
     document.getElementById("mainBox").classList.remove("hidden");
 }
 
-// 页面刷新保持登录
 window.onload = function () {
     if (localStorage.getItem("logined") === "true") {
         renderAfterLogin();
     }
 };
 
-// ====================== 保存（标题+内容 一条） ======================
+// ====================== 保存 ======================
 function saveItem() {
     let title = document.getElementById("title").value.trim();
     let content = document.getElementById("content").value.trim();
-
-    if (!title || !content) {
-        alert("标题和内容都不能为空");
-        return;
-    }
+    if (!title || !content) return alert("标题和内容不能为空");
 
     db.collection("items").add({
         userId: MY_ID,
@@ -214,14 +196,13 @@ function saveItem() {
         alert("保存成功");
         document.getElementById("title").value = "";
         document.getElementById("content").value = "";
-    }).catch(e => alert("保存失败：" + e.message));
+    });
 }
 
-// ====================== 查询全部（分页10条） ======================
+// ====================== ✅ 查询全部（已修复：无索引） ======================
 function loadAllData() {
     db.collection("items")
         .where("userId", "==", MY_ID)
-        .orderBy("createTime", "desc")
         .get({ source: "server" })
         .then(snap => {
             totalData = [];
@@ -230,21 +211,26 @@ function loadAllData() {
                 totalData.push({
                     title: d.title || "",
                     content: d.content || "",
-                    createTime: d.createTime
+                    createTime: d.createTime || null
                 });
             });
+
+            // 前端排序，不依靠 Firestore orderBy → 永远不需要索引
+            totalData.sort((a, b) => {
+                if (!a.createTime) return 1;
+                if (!b.createTime) return -1;
+                return b.createTime.seconds - a.createTime.seconds;
+            });
+
             currentPage = 1;
             showPageData();
         });
 }
 
-// ====================== 标题模糊搜索 ======================
+// ====================== 标题搜索 ======================
 function searchByTitle() {
     let key = document.getElementById("searchKey").value.trim().toLowerCase();
-    if (!key) {
-        alert("请输入搜索关键词");
-        return;
-    }
+    if (!key) return alert("请输入关键词");
 
     db.collection("items")
         .where("userId", "==", MY_ID)
@@ -253,8 +239,7 @@ function searchByTitle() {
             totalData = [];
             snap.forEach(doc => {
                 let d = doc.data();
-                let title = (d.title || "").toLowerCase();
-                if (title.includes(key)) {
+                if ((d.title || "").toLowerCase().includes(key)) {
                     totalData.push({
                         title: d.title,
                         content: d.content,
@@ -262,6 +247,13 @@ function searchByTitle() {
                     });
                 }
             });
+
+            totalData.sort((a, b) => {
+                if (!a.createTime) return 1;
+                if (!b.createTime) return -1;
+                return b.createTime.seconds - a.createTime.seconds;
+            });
+
             currentPage = 1;
             showPageData();
         });
@@ -273,7 +265,6 @@ function showPageData() {
     let pageBox = document.getElementById("pageBox");
     let pageNum = document.getElementById("pageNum");
 
-    let total = totalData.length;
     let start = (currentPage - 1) * PAGE_SIZE;
     let end = start + PAGE_SIZE;
     let pageData = totalData.slice(start, end);
