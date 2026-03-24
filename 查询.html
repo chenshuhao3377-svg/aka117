@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>查询工具（固定账号登录）</title>
+    <title>固定账号记录系统</title>
     <style>
         * {
             margin: 0;
@@ -12,252 +12,309 @@
             font-family: "Microsoft Yahei", Arial, sans-serif;
         }
         .container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 30px;
-            background: #f9f9f9;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h2 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-        .auth-area, .record-area {
-            margin: 20px 0;
+            max-width: 700px;
+            margin: 40px auto;
             padding: 20px;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #eee;
         }
-        h3 {
-            color: #444;
-            margin-bottom: 15px;
-            font-size: 18px;
+        .box {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
         }
         input {
+            width: 100%;
             padding: 10px;
             margin: 8px 0;
-            width: 100%;
-            max-width: 300px;
             border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 6px;
             font-size: 14px;
-        }
-        input::placeholder {
-            color: #999;
         }
         button {
-            padding: 10px 20px;
-            margin: 8px 5px 8px 0;
+            padding: 10px 16px;
+            margin: 6px 4px 6px 0;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
+            background: #007bff;
+            color: #fff;
             font-size: 14px;
-            transition: background 0.2s;
         }
-        .btn-primary {
-            background: #2196F3;
-            color: white;
+        button.danger {
+            background: #dc3545;
         }
-        .btn-primary:hover {
-            background: #1976D2;
-        }
-        .btn-danger {
-            background: #f44336;
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #d32f2f;
+        button.gray {
+            background: #6c757d;
         }
         .hidden {
             display: none !important;
         }
-        #authTip {
-            color: #666;
-            font-size: 14px;
+        .tip {
             margin: 10px 0;
-            line-height: 1.5;
+            color: #333;
+            font-size: 14px;
         }
-        #recordList {
-            margin-top: 15px;
-            padding: 10px;
-            border-top: 1px dashed #ddd;
+        .item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 8px;
+        }
+        .item h4 {
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #222;
+        }
+        .item p {
+            font-size: 14px;
             color: #555;
+            margin-bottom: 4px;
+            white-space: pre-line;
         }
-        #recordList p {
-            margin: 8px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid #f5f5f5;
-        }
-        #recordList small {
+        .item small {
+            font-size: 12px;
             color: #999;
-            margin-left: 10px;
+        }
+        .page-box {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .search-bar {
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>查询工具（固定账号登录）</h2>
-        
-        <div class="auth-area">
-            <h3>账号登录</h3>
-            <input type="text" id="userID" placeholder="请输入登录ID（固定：1816561717）">
-            <input type="password" id="userPwd" placeholder="请输入登录密码">
-            <button id="loginBtn" class="btn-primary">登录系统</button>
-            <button id="logoutBtn" class="btn-danger hidden">退出登录</button>
-            <p id="authTip">请使用指定账号密码登录</p>
+
+<div class="container">
+
+    <!-- 登录区域（登录成功后整体隐藏） -->
+    <div class="box" id="loginBox">
+        <h3>登录</h3>
+        <input type="text" id="loginId" placeholder="请输入账号">
+        <input type="password" id="loginPwd" placeholder="请输入密码">
+        <button onclick="doLogin()">登录</button>
+        <div class="tip" id="tip"></div>
+    </div>
+
+    <!-- 退出按钮（登录后才显示） -->
+    <div class="hidden" id="logoutBox">
+        <button class="danger" onclick="doLogout()">退出登录</button>
+    </div>
+
+    <!-- 功能区域（登录后显示） -->
+    <div class="box hidden" id="mainBox">
+        <h3>新增记录</h3>
+        <input type="text" id="title" placeholder="标题">
+        <input type="text" id="content" placeholder="内容">
+        <button onclick="saveItem()">保存这条记录</button>
+
+        <hr style="margin:20px 0">
+
+        <h3>查询记录</h3>
+        <div class="search-bar">
+            <input type="text" id="searchKey" placeholder="按标题模糊搜索">
+            <button onclick="searchByTitle()">搜索标题</button>
+            <button class="gray" onclick="loadAllData()">查询全部</button>
         </div>
 
-        <div class="record-area hidden" id="recordArea">
-            <h3>数据记录</h3>
-            <input type="text" id="recordContent" placeholder="请输入要记录的内容">
-            <button id="saveRecordBtn" class="btn-primary">保存记录</button>
-            <button id="getRecordsBtn" class="btn-primary">查看我的记录</button>
-            <div id="recordList"></div>
+        <div id="listBox"></div>
+        <div class="page-box hidden" id="pageBox">
+            <button onclick="prevPage()">上一页</button>
+            <span>第 <span id="pageNum">1</span> 页</span>
+            <button onclick="nextPage()">下一页</button>
         </div>
     </div>
 
-    <!-- Firebase 8.x 兼容版 SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</div>
 
-    <script>
-        window.onload = function() {
-            const firebaseConfig = {
-                apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
-                authDomain: "fir-001-f26d9.firebaseapp.com",
-                projectId: "fir-001-f26d9",
-                storageBucket: "fir-001-f26d9.firebasestorage.app",
-                messagingSenderId: "944028774180",
-                appId: "1:944028774180:web:3bf07903a20c52b6120db1"
-            };
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            const db = firebase.firestore();
+<script>
+// ====================== 配置 ======================
+const firebaseConfig = {
+    apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
+    authDomain: "fir-001-f26d9.firebaseapp.com",
+    projectId: "fir-001-f26d9",
+    storageBucket: "fir-001-f26d9.firebasestorage.app",
+    messagingSenderId: "944028774180",
+    appId: "1:944028774180:web:3bf07903a20c52b6120db1"
+};
 
-            const FIXED_USER = { id: "1816561717", password: "xxx2351554" };
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
 
-            const els = {
-                loginBtn: document.getElementById('loginBtn'),
-                logoutBtn: document.getElementById('logoutBtn'),
-                authTip: document.getElementById('authTip'),
-                recordArea: document.getElementById('recordArea'),
-                userID: document.getElementById('userID'),
-                userPwd: document.getElementById('userPwd'),
-                recordContent: document.getElementById('recordContent'),
-                recordList: document.getElementById('recordList'),
-                saveRecordBtn: document.getElementById('saveRecordBtn'),
-                getRecordsBtn: document.getElementById('getRecordsBtn')
-            };
+// 固定账号
+const MY_ID = "1816561717";
+const MY_PWD = "xxx2351554";
 
-            // 登录逻辑
-            els.loginBtn.onclick = function() {
-                const inputID = els.userID.value.trim();
-                const inputPwd = els.userPwd.value.trim();
-                if (!inputID || !inputPwd) {
-                    els.authTip.innerText = "账号和密码不能为空！";
-                    return;
-                }
-                if (inputID === FIXED_USER.id && inputPwd === FIXED_USER.password) {
-                    els.authTip.innerText = `登录成功！（${inputID}）`;
-                    els.logoutBtn.classList.remove('hidden');
-                    els.recordArea.classList.remove('hidden');
-                    els.userPwd.value = "";
-                    localStorage.setItem('isLogin', 'true');
-                } else {
-                    els.authTip.innerText = "账号或密码错误！";
-                }
-            };
+// 分页
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let totalData = [];
 
-            // 退出登录
-            els.logoutBtn.onclick = function() {
-                els.authTip.innerText = "已退出登录！";
-                els.logoutBtn.classList.add('hidden');
-                els.recordArea.classList.add('hidden');
-                els.recordList.innerHTML = "";
-                els.userID.value = "";
-                localStorage.removeItem('isLogin');
-            };
+// ====================== 登录 / 退出 ======================
+function doLogin() {
+    let id = document.getElementById("loginId").value.trim();
+    let pwd = document.getElementById("loginPwd").value.trim();
+    let tip = document.getElementById("tip");
 
-            // 保存记录
-            els.saveRecordBtn.onclick = function() {
-                if (localStorage.getItem('isLogin') !== 'true') {
-                    alert("请先登录！");
-                    return;
-                }
-                const content = els.recordContent.value.trim();
-                if (!content) {
-                    alert("请输入要记录的内容！");
-                    return;
-                }
-                db.collection("fixed_user_records").add({
-                    userId: FIXED_USER.id,
-                    content: content,
-                    createTime: firebase.firestore.FieldValue.serverTimestamp()
-                })
-                .then(() => {
-                    alert("✅ 记录保存成功！");
-                    els.recordContent.value = "";
-                })
-                .catch(err => {
-                    console.error("保存失败：", err);
-                    alert("❌ 保存失败：" + err.message);
+    if (!id || !pwd) {
+        tip.textContent = "账号密码不能为空";
+        return;
+    }
+    if (id === MY_ID && pwd === MY_PWD) {
+        localStorage.setItem("logined", "true");
+        renderAfterLogin();
+    } else {
+        tip.textContent = "账号或密码错误";
+    }
+}
+
+function doLogout() {
+    localStorage.removeItem("logined");
+    location.reload();
+}
+
+// 登录后：隐藏登录框，显示主界面 + 退出
+function renderAfterLogin() {
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("logoutBox").classList.remove("hidden");
+    document.getElementById("mainBox").classList.remove("hidden");
+}
+
+// 页面刷新保持登录
+window.onload = function () {
+    if (localStorage.getItem("logined") === "true") {
+        renderAfterLogin();
+    }
+};
+
+// ====================== 保存（标题+内容 一条） ======================
+function saveItem() {
+    let title = document.getElementById("title").value.trim();
+    let content = document.getElementById("content").value.trim();
+
+    if (!title || !content) {
+        alert("标题和内容都不能为空");
+        return;
+    }
+
+    db.collection("items").add({
+        userId: MY_ID,
+        title: title,
+        content: content,
+        createTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+        alert("保存成功");
+        document.getElementById("title").value = "";
+        document.getElementById("content").value = "";
+    }).catch(e => alert("保存失败：" + e.message));
+}
+
+// ====================== 查询全部（分页10条） ======================
+function loadAllData() {
+    db.collection("items")
+        .where("userId", "==", MY_ID)
+        .orderBy("createTime", "desc")
+        .get({ source: "server" })
+        .then(snap => {
+            totalData = [];
+            snap.forEach(doc => {
+                let d = doc.data();
+                totalData.push({
+                    title: d.title || "",
+                    content: d.content || "",
+                    createTime: d.createTime
                 });
-            };
+            });
+            currentPage = 1;
+            showPageData();
+        });
+}
 
-            // 查看记录（绕开索引，前端排序）
-            els.getRecordsBtn.onclick = function() {
-                if (localStorage.getItem('isLogin') !== 'true') {
-                    alert("请先登录！");
-                    return;
-                }
-                // 只按 userId 过滤，不排序，绕开索引
-                db.collection("fixed_user_records")
-                    .where("userId", "==", FIXED_USER.id)
-                    .get()
-                    .then(snapshot => {
-                        if (snapshot.empty) {
-                            els.recordList.innerHTML = "<p>暂无记录</p>";
-                            return;
-                        }
-                        // 把数据转成数组，在前端按时间倒序排序
-                        let records = [];
-                        snapshot.forEach(doc => {
-                            const data = doc.data();
-                            records.push({
-                                content: data.content,
-                                createTime: data.createTime || new Date(0)
-                            });
-                        });
-                        // 按创建时间降序排序（最新的在前面）
-                        records.sort((a, b) => b.createTime - a.createTime);
-                        
-                        let html = "";
-                        records.forEach((item, idx) => {
-                            const time = item.createTime.toDate ? item.createTime.toDate().toLocaleString() : "未知时间";
-                            html += `<p>${idx+1}. ${item.content} <small>${time}</small></p>`;
-                        });
-                        els.recordList.innerHTML = html;
-                    })
-                    .catch(err => {
-                        console.error("获取记录失败：", err);
-                        alert("❌ 获取记录失败：" + err.message);
+// ====================== 标题模糊搜索 ======================
+function searchByTitle() {
+    let key = document.getElementById("searchKey").value.trim().toLowerCase();
+    if (!key) {
+        alert("请输入搜索关键词");
+        return;
+    }
+
+    db.collection("items")
+        .where("userId", "==", MY_ID)
+        .get({ source: "server" })
+        .then(snap => {
+            totalData = [];
+            snap.forEach(doc => {
+                let d = doc.data();
+                let title = (d.title || "").toLowerCase();
+                if (title.includes(key)) {
+                    totalData.push({
+                        title: d.title,
+                        content: d.content,
+                        createTime: d.createTime
                     });
-            };
+                }
+            });
+            currentPage = 1;
+            showPageData();
+        });
+}
 
-            // 保持登录状态
-            if (localStorage.getItem('isLogin') === 'true') {
-                els.authTip.innerText = `当前已登录：${FIXED_USER.id}`;
-                els.logoutBtn.classList.remove('hidden');
-                els.recordArea.classList.remove('hidden');
-            }
+// ====================== 分页展示 ======================
+function showPageData() {
+    let listBox = document.getElementById("listBox");
+    let pageBox = document.getElementById("pageBox");
+    let pageNum = document.getElementById("pageNum");
 
-            console.log("✅ 系统初始化完成！");
-        };
-    </script>
+    let total = totalData.length;
+    let start = (currentPage - 1) * PAGE_SIZE;
+    let end = start + PAGE_SIZE;
+    let pageData = totalData.slice(start, end);
+
+    pageNum.textContent = currentPage;
+    pageBox.classList.remove("hidden");
+
+    let html = "";
+    if (pageData.length === 0) {
+        html = "<p>暂无数据</p>";
+    } else {
+        pageData.forEach(item => {
+            let time = item.createTime
+                ? new Date(item.createTime.seconds * 1000).toLocaleString()
+                : "无时间";
+            html += `
+            <div class="item">
+                <h4>${item.title}</h4>
+                <p>${item.content}</p>
+                <small>${time}</small>
+            </div>`;
+        });
+    }
+    listBox.innerHTML = html;
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        showPageData();
+    }
+}
+
+function nextPage() {
+    let maxPage = Math.ceil(totalData.length / PAGE_SIZE);
+    if (currentPage < maxPage) {
+        currentPage++;
+        showPageData();
+    }
+}
+</script>
+
 </body>
 </html>
