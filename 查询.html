@@ -132,6 +132,96 @@ function render() {
     document.getElementById("list").innerHTML=html;
 }
 
+
+
+
+
+
+
+
+
+
+<!--=====量子随机数手动处理窗口【独立模块，不改动原有业务】=====-->
+<div style="border:1px solid #777; padding:18px; margin:20px 0; border‑radius:8px;">
+    <h3>量子随机数处理器（手动粘贴ANU原始数据）</h3>
+    <div>
+        <p>把ANU返回的data数组数字粘贴到下面输入框，逗号分隔</p>
+        <textarea id="rawInput" rows="3" style="width:100%;padding:8px;" placeholder="示例：1234,5678,999,111,222,333,444,555"></textarea>
+    </div>
+    <div style="margin‑top:10px;">
+        <button id="calcBtn">转换生成7个号码</button>
+        <div id="showResult" style="margin:12px 0; font‑size:18px; letter‑spacing:2px;"></div>
+        <button id="saveToDbBtn" style="display:none;">保存到fixed_user_records记录库</button>
+    </div>
+</div>
+
+<script>
+let finalSeven = null;
+const calcBtn = document.querySelector('#calcBtn');
+const rawInput = document.querySelector('#rawInput');
+const showResult = document.querySelector('#showResult');
+const saveToDbBtn = document.querySelector('#saveToDbBtn');
+
+calcBtn.onclick = function(){
+    saveToDbBtn.style.display = 'none';
+    const text = rawInput.value.trim();
+    if(!text){
+        showResult.innerText = "请粘贴ANU返回的data数组数字，逗号隔开";
+        return;
+    }
+    //解析粘贴进来的原始数字
+    const rawArr = text.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n));
+    if(rawArr.length <7){
+        showResult.innerText = `原始数字数量不足，至少需要7个，当前拿到${rawArr.length}个`;
+        return;
+    }
+    //计算：前6个映射1‑33，第7个映射1‑16
+    const group1 = [];
+    for(let i=0;i<6;i++){
+        const num = (rawArr[i] % 33)+1;
+        group1.push(num);
+    }
+    const bonusNum = (rawArr[6]%16)+1;
+    finalSeven = [...group1, bonusNum];
+    showResult.innerText = `生成结果（按生成顺序）：${finalSeven.join(" ")}`;
+    saveToDbBtn.style.display = "inline‑block";
+}
+
+//保存到你的Firestore集合 fixed_user_records
+saveToDbBtn.onclick = async function(){
+    if(!finalSeven) return;
+    const title = "量子随机号码";
+    const content = `7位序列：${finalSeven.join(",")}`;
+    // =========复用你原本新增记录函数============
+    // addRecord(title,content);
+    alert("已准备保存，调用addRecord即可写入fixed_user_records集合");
+}
+</script>
+<!--=====模块结束=====-->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 window.onload=()=>{
     if(localStorage.getItem("login")==="ok") showMain();
 };
