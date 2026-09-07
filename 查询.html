@@ -18,12 +18,10 @@
     </style>
 </head>
 <body>
-
 <div class="container">
+    <!-- 登录页：已移除账号密码输入框 -->
     <div class="card" id="loginPage">
         <h3>登录</h3>
-        <input type="text" id="uid" placeholder="账号">
-        <input type="password" id="pwd" placeholder="密码">
         <button onclick="login()">登录</button>
     </div>
 
@@ -34,20 +32,79 @@
         <input type="text" id="title" placeholder="标题">
         <input type="text" id="content" placeholder="内容">
         <button onclick="saveData()">保存</button>
-
         <br><br>
         <h3>查询</h3>
         <input type="text" id="kw" placeholder="搜索标题">
         <button onclick="search()">搜索</button>
         <button onclick="getAll()">查询全部</button>
-        
+
+        <!-- =========量子随机数自动生成模块========= -->
+        <div style="border:1px solid #777; padding:18px; margin:20px 0; border-radius:8px;">
+            <h3>量子随机数生成器</h3>
+            <div style="margin-top:10px;">
+                <button id="calcBtn">自动生成7个号码</button>
+                <div id="showResult" style="margin:12px 0; font-size:18px; letter-spacing:2px;"></div>
+                <button id="saveToDbBtn" style="display:none;">保存到记录库</button>
+            </div>
+        </div>
+
+        <script>
+// 你的ANU API Key已填入
+const ANU_API_KEY = "FREE_qrng-key_1788750930";
+let finalSeven = null;
+const calcBtn = document.querySelector('#calcBtn');
+const showResult = document.querySelector('#showResult');
+const saveToDbBtn = document.querySelector('#saveToDbBtn');
+
+calcBtn.onclick = async function(){
+    saveToDbBtn.style.display = 'none';
+    showResult.innerText = "正在请求量子随机数接口...";
+    try{
+        // 公共CORS代理，解决浏览器跨域问题
+        const targetUrl = `https://api.quantumnumbers.anu.edu.au?length=7&type=uint16`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        const resp = await fetch(proxyUrl, {
+            headers: {
+                "x-api-key": ANU_API_KEY
+            }
+        });
+        const body = await resp.json();
+        if(!body.success){
+            showResult.innerText = "接口调用失败：" + JSON.stringify(body);
+            return;
+        }
+        const rawArr = body.data;
+        // 前6个映射到1-33
+        const group1 = [];
+        for(let i=0;i<6;i++){
+            const num = (rawArr[i] % 33)+1;
+            group1.push(num);
+        }
+        // 第7个映射到1-16
+        const bonusNum = (rawArr[6]%16)+1;
+        finalSeven = [...group1, bonusNum];
+        showResult.innerText = `生成结果（按生成顺序）：${finalSeven.join(" ")}`;
+        saveToDbBtn.style.display = "inline-block";
+    }catch(e){
+        showResult.innerText = "请求失败，公共代理不稳定，请重试：" + e.message;
+        console.error(e);
+    }
+}
+
+saveToDbBtn.onclick = async function(){
+    if(!finalSeven) return;
+    document.getElementById('title').value = "量子随机号码";
+    document.getElementById('content').value = `7位序列：${finalSeven.join(",")}`;
+    saveData();
+}
+        </script>
+        <!-- =========模块结束========= -->
+
         <div id="list" style="margin-top:15px;"></div>
     </div>
 </div>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
 <script>
 const firebaseConfig = {
     apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
@@ -57,39 +114,29 @@ const firebaseConfig = {
     messagingSenderId: "944028774180",
     appId: "1:944028774180:web:3bf07903a20c52b6120db1"
 };
-
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
 const USER_ID = "1816561717";
-const USER_PWD = "xxx2351554";
 let dataList = [];
 
+// 直接登录，无需输入账号密码
 function login() {
-    let id = document.getElementById("uid").value.trim();
-    let p = document.getElementById("pwd").value.trim();
-    if (id === USER_ID && p === USER_PWD) {
-        localStorage.setItem("login","ok");
-        showMain();
-    } else alert("账号密码错误");
+    localStorage.setItem("login","ok");
+    showMain();
 }
-
 function logout() {
     localStorage.removeItem("login");
     location.reload();
 }
-
 function showMain() {
     document.getElementById("loginPage").classList.add("hide");
     document.getElementById("mainPage").classList.remove("hide");
 }
-
 // 保存
 function saveData() {
     let t = document.getElementById("title").value.trim();
     let c = document.getElementById("content").value.trim();
     if (!t || !c) return alert("标题和内容不能为空");
-
     db.collection("items").add({
         userId: USER_ID,
         title: t,
@@ -101,8 +148,7 @@ function saveData() {
         document.getElementById("content").value="";
     });
 }
-
-// 查询全部（无索引，无排序）
+// 查询全部
 function getAll() {
     db.collection("items").where("userId","==",USER_ID).get().then(s=>{
         dataList=[];
@@ -110,7 +156,6 @@ function getAll() {
         render();
     });
 }
-
 // 搜索
 function search() {
     let k = document.getElementById("kw").value.trim().toLowerCase();
@@ -123,7 +168,6 @@ function search() {
         render();
     });
 }
-
 function render() {
     let html="";
     dataList.forEach(i=>{
@@ -131,97 +175,6 @@ function render() {
     });
     document.getElementById("list").innerHTML=html;
 }
-
-
-
-
-
-
-
-
-
-
-<!--=====量子随机数手动处理窗口【独立模块，不改动原有业务】=====-->
-<div style="border:1px solid #777; padding:18px; margin:20px 0; border‑radius:8px;">
-    <h3>量子随机数处理器（手动粘贴ANU原始数据）</h3>
-    <div>
-        <p>把ANU返回的data数组数字粘贴到下面输入框，逗号分隔</p>
-        <textarea id="rawInput" rows="3" style="width:100%;padding:8px;" placeholder="示例：1234,5678,999,111,222,333,444,555"></textarea>
-    </div>
-    <div style="margin‑top:10px;">
-        <button id="calcBtn">转换生成7个号码</button>
-        <div id="showResult" style="margin:12px 0; font‑size:18px; letter‑spacing:2px;"></div>
-        <button id="saveToDbBtn" style="display:none;">保存到fixed_user_records记录库</button>
-    </div>
-</div>
-
-<script>
-let finalSeven = null;
-const calcBtn = document.querySelector('#calcBtn');
-const rawInput = document.querySelector('#rawInput');
-const showResult = document.querySelector('#showResult');
-const saveToDbBtn = document.querySelector('#saveToDbBtn');
-
-calcBtn.onclick = function(){
-    saveToDbBtn.style.display = 'none';
-    const text = rawInput.value.trim();
-    if(!text){
-        showResult.innerText = "请粘贴ANU返回的data数组数字，逗号隔开";
-        return;
-    }
-    //解析粘贴进来的原始数字
-    const rawArr = text.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n));
-    if(rawArr.length <7){
-        showResult.innerText = `原始数字数量不足，至少需要7个，当前拿到${rawArr.length}个`;
-        return;
-    }
-    //计算：前6个映射1‑33，第7个映射1‑16
-    const group1 = [];
-    for(let i=0;i<6;i++){
-        const num = (rawArr[i] % 33)+1;
-        group1.push(num);
-    }
-    const bonusNum = (rawArr[6]%16)+1;
-    finalSeven = [...group1, bonusNum];
-    showResult.innerText = `生成结果（按生成顺序）：${finalSeven.join(" ")}`;
-    saveToDbBtn.style.display = "inline‑block";
-}
-
-//保存到你的Firestore集合 fixed_user_records
-saveToDbBtn.onclick = async function(){
-    if(!finalSeven) return;
-    const title = "量子随机号码";
-    const content = `7位序列：${finalSeven.join(",")}`;
-    // =========复用你原本新增记录函数============
-    // addRecord(title,content);
-    alert("已准备保存，调用addRecord即可写入fixed_user_records集合");
-}
-</script>
-<!--=====模块结束=====-->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 window.onload=()=>{
     if(localStorage.getItem("login")==="ok") showMain();
 };
