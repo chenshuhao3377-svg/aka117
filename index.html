@@ -37,7 +37,7 @@
         <input type="text" id="kw" placeholder="搜索标题">
         <button onclick="search()">搜索</button>
         <button onclick="getAll()">查询全部</button>
-        <!-- =========量子随机数自动生成模块【带跨域代理】========= -->
+        <!-- =========量子随机数生成模块【前端本地随机，不用后端】========= -->
         <div style="border:1px solid #777; padding:18px; margin:20px 0; border-radius:8px;">
             <h3>量子随机数生成器</h3>
             <div style="margin-top:10px;">
@@ -51,40 +51,26 @@ let finalSeven = null;
 const calcBtn = document.querySelector('#calcBtn');
 const showResult = document.querySelector('#showResult');
 const saveToDbBtn = document.querySelector('#saveToDbBtn');
-// 后端原始地址
-const API_URL = "http://47.237.213.145:3000/api/random";
 
 calcBtn.onclick = async function(){
     saveToDbBtn.style.display = 'none';
-    showResult.innerText = "正在请求量子随机数接口...";
-    try{
-        // codetabs https代理中转，解决混合内容跨域问题
-        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(API_URL)}`;
-        const resp = await fetch(proxyUrl);
-        const body = await resp.json();
-        if(!body.success){
-            showResult.innerText = "接口调用失败：" + JSON.stringify(body);
-            return;
+    showResult.innerText = "正在生成号码...";
+
+    // 前端本地生成6个不重复红球(1~33)
+    const redNums = [];
+    while(redNums.length < 6){
+        const num = Math.floor(Math.random() * 33) + 1;
+        if(!redNums.includes(num)){
+            redNums.push(num);
         }
-        const rawArr = body.data;
-        const redNums = [];
-        // 取6个不重复1~33红球
-        while(redNums.length < 6){
-            const num = (rawArr.shift() % 33) + 1;
-            if(!redNums.includes(num)){
-                redNums.push(num);
-            }
-        }
-        redNums.sort((a,b)=>a-b); //红球从小到大排序
-        // 1个蓝球 1~16
-        const blueNum = (rawArr.shift() %16)+1;
-        finalSeven = [...redNums, blueNum];
-        showResult.innerText = `生成结果（红球排序+蓝球）：${finalSeven.join(" ")}`;
-        saveToDbBtn.style.display = "inline-block";
-    }catch(e){
-        showResult.innerText = "请求失败，请重试：" + e.message;
-        console.error(e);
     }
+    redNums.sort((a,b)=>a-b);
+    // 蓝球 1~16
+    const blueNum = Math.floor(Math.random() *16)+1;
+    finalSeven = [...redNums, blueNum];
+
+    showResult.innerText = `生成结果（红球排序+蓝球）：${finalSeven.join(" ")}`;
+    saveToDbBtn.style.display = "inline-block";
 }
 saveToDbBtn.onclick = async function(){
     if(!finalSeven) return;
