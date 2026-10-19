@@ -37,7 +37,7 @@
         <input type="text" id="kw" placeholder="搜索标题">
         <button onclick="search()">搜索</button>
         <button onclick="getAll()">查询全部</button>
-        <!-- =========量子随机数自动生成模块【已更新后端】========= -->
+        <!-- =========量子随机数自动生成模块【带跨域代理】========= -->
         <div style="border:1px solid #777; padding:18px; margin:20px 0; border-radius:8px;">
             <h3>量子随机数生成器</h3>
             <div style="margin-top:10px;">
@@ -51,14 +51,16 @@ let finalSeven = null;
 const calcBtn = document.querySelector('#calcBtn');
 const showResult = document.querySelector('#showResult');
 const saveToDbBtn = document.querySelector('#saveToDbBtn');
-// 后端地址，你的阿里云代理接口
+// 后端原始地址
 const API_URL = "http://47.237.213.145:3000/api/random";
 
 calcBtn.onclick = async function(){
     saveToDbBtn.style.display = 'none';
     showResult.innerText = "正在请求量子随机数接口...";
     try{
-        const resp = await fetch(API_URL);
+        // codetabs https代理中转，解决混合内容跨域问题
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(API_URL)}`;
+        const resp = await fetch(proxyUrl);
         const body = await resp.json();
         if(!body.success){
             showResult.innerText = "接口调用失败：" + JSON.stringify(body);
@@ -102,74 +104,70 @@ const firebaseConfig = {
     apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
     authDomain: "fir-001-f26d9.firebaseapp.com",
     projectId: "fir-001-f26d9",
-    storageBucket: "fir-001-f26d9.firebasestorage.app",
+    storageBucket: "fir-001-f26d9.appspot.com",
     messagingSenderId: "944028774180",
-    appId: "1:944028774180:web:3bf07903a20c52b6120db1"
+    appId: "1:944028774180:web:3bf07903a20c52b66927db"
 };
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const USER_ID = "1816561717";
 const USER_PWD = "xxx2351554";
-let dataList = [];
-function login() {
-    let id = document.getElementById("uid").value.trim();
-    let p = document.getElementById("pwd").value.trim();
-    if (id === USER_ID && p === USER_PWD) {
-        localStorage.setItem("login","ok");
-        showMain();
-    } else alert("账号密码错误");
+
+function login(){
+    const uid = document.getElementById('uid').value.trim();
+    const pwd = document.getElementById('pwd').value.trim();
+    if(uid === USER_ID && pwd === USER_PWD){
+        localStorage.setItem("isLogin","1");
+        document.getElementById("loginPage").classList.add("hide");
+        document.getElementById("mainPage").classList.remove("hide");
+    }else{
+        alert("账号或密码错误");
+    }
 }
-function logout() {
-    localStorage.removeItem("login");
+function logout(){
+    localStorage.removeItem("isLogin");
     location.reload();
 }
-function showMain() {
-    document.getElementById("loginPage").classList.add("hide");
-    document.getElementById("mainPage").classList.remove("hide");
+window.onload = function(){
+    if(localStorage.getItem("isLogin") === "1"){
+        document.getElementById("loginPage").classList.add("hide");
+        document.getElementById("mainPage").classList.remove("hide");
+    }
 }
-function saveData() {
-    let t = document.getElementById("title").value.trim();
-    let c = document.getElementById("content").value.trim();
-    if (!t || !c) return alert("标题和内容不能为空");
-    db.collection("items").add({
-        userId: USER_ID,
-        title: t,
-        content: c,
-        createTime: new Date()
-    }).then(()=>{
-        alert("保存成功");
-        document.getElementById("title").value="";
-        document.getElementById("content").value="";
+async function saveData(){
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+    if(!title || !content){
+        alert("标题和内容不能为空");
+        return;
+    }
+    await db.collection("records").add({
+        title:title,
+        content:content,
+        time:new Date()
     });
+    alert("保存成功");
+    document.getElementById('title').value="";
+    document.getElementById('content').value="";
 }
-function getAll() {
-    db.collection("items").where("userId","==",USER_ID).get().then(s=>{
-        dataList=[];
-        s.forEach(d=>dataList.push(d.data()));
-        render();
-    });
+async function search(){
+    const kw = document.getElementById('kw').value.trim();
+    const ref = db.collection("records").where("title",">=",kw).where("title","<",kw+"\uf8ff");
+    const snapshot = await ref.get();
+    renderList(snapshot);
 }
-function search() {
-    let k = document.getElementById("kw").value.trim().toLowerCase();
-    db.collection("items").where("userId","==",USER_ID).get().then(s=>{
-        dataList=[];
-        s.forEach(d=>{
-            let dt=d.data();
-            if(dt.title.toLowerCase().includes(k)) dataList.push(dt);
-        });
-        render();
-    });
+async function getAll(){
+    const snapshot = await db.collection("records").orderBy("time","desc").get();
+    renderList(snapshot);
 }
-function render() {
-    let html="";
-    dataList.forEach(i=>{
-        html+=`<div class="item"><h4>${i.title}</h4><p>${i.content}</p></div>`;
-    });
-    document.getElementById("list").innerHTML=html;
+function renderList(snapshot){
+    let html = "";
+    snapshot.forEach(doc=>{
+        const d = doc.data();
+        html += `<div class="item"><h4>${d.title}</h4><p>${d.content}</p></div>`;
+    })
+    document.getElementById("list").innerHTML = html;
 }
-window.onload=()=>{
-    if(localStorage.getItem("login")==="ok") showMain();
-};
 </script>
 </body>
 </html>
