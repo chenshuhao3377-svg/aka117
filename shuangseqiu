@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>双色球随机号码</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui, sans-serif;}
+    body{background:#f7f8fa;padding:24px 16px;}
+    .wrap{max-width:640px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;padding:28px;box-shadow:0 1px 10px rgba(0,0,0,0.08);margin-bottom:24px;}
+    h2{text-align:center;color:#222;margin-bottom:24px;font-weight:500;}
+    .ball-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:24px 0;}
+    .ball{
+      width:52px;height:52px;border-radius:50%;color:#fff;font-size:18px;font-weight:bold;
+      display:inline-flex;align-items:center;justify-content:center;
+    }
+    .red{background:#dd2828;}
+    .blue{background:#0062c8;}
+    #refreshBtn{
+      width:100%;padding:14px;border:none;border-radius:99px;background:#0062c8;color:white;
+      font-size:17px;cursor:pointer;transition:0.2s;
+    }
+    #refreshBtn:hover{background:#004e9f;}
+    #refreshBtn:disabled{background:#999;cursor:not-allowed;}
+    .result-card{margin-top:20px;padding:16px;border:1px solid #eee;border-radius:10px;}
+    .result-title{font-size:16px;margin-bottom:10px;font-weight:500;}
+    .result-balls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .result-ball{
+      width:40px;height:40px;border-radius:50%;color:#fff;font-size:15px;font-weight:bold;
+      display:inline-flex;align-items:center;justify-content:center;
+    }
+    .tip-empty{color:#888;text-align:center;padding:20px;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2>双色球号码</h2>
+    <div class="ball-row" id="ballBox">
+      <div style="color:#666;text-align:center;width:100%;">点击下方刷新按钮生成号码</div>
+    </div>
+    <button id="refreshBtn">刷新一组号码</button>
+
+    <div class="result-card">
+      <div class="result-title">📋 本次结果公示</div>
+      <div id="resultBox" class="tip-empty">等待生成号码</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ballBox = document.getElementById('ballBox');
+const resultBox = document.getElementById('resultBox');
+const refreshBtn = document.getElementById('refreshBtn');
+const API = "http://47.237.213.145:3000";
+
+// 渲染彩球
+function renderBalls(red, blue) {
+  let html = '';
+  red.forEach(n=> html += `<div class="ball red">${n}</div>`);
+  html += `<div class="ball blue">${blue}</div>`;
+  ballBox.innerHTML = html;
+}
+
+// 渲染公示栏（仅展示当前这一组）
+function renderResult(red, blue){
+  let html = `<span>红球：</span>`;
+  red.forEach(n=>{
+    html += `<div class="result-ball red">${n}</div>`
+  })
+  html += `<span style="margin-left:12px;">蓝球：</span>`;
+  html += `<div class="result-ball blue">${blue}</div>`;
+  resultBox.innerHTML = html;
+}
+
+// 刷新按钮
+refreshBtn.onclick = async ()=>{
+  refreshBtn.disabled = true;
+  ballBox.innerHTML = `<div style="color:#444;text-align:center;width:100%;">请求获取号码...</div>`;
+  resultBox.innerHTML = "加载中...";
+  try {
+    const res = await fetch(`${API}/getRandom`);
+    const data = await res.json();
+    if(!data.success) throw new Error("接口异常");
+    const red = data.red;
+    const blue = data.blue[0];
+
+    renderBalls(red, blue);
+    renderResult(red, blue);
+  } catch (err){
+    ballBox.innerHTML = `<div style="color:red;text-align:center;width:100%;">获取失败，请检查后端服务</div>`
+    resultBox.innerHTML = `<span style="color:red">接口请求失败</span>`
+    console.error(err);
+  }
+  refreshBtn.disabled = false;
+}
+</script>
+</body>
+</html>
