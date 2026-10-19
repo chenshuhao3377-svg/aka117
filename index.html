@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记录系统</title>
+    <style>
+        *{box-sizing:border-box;font-family:Arial;margin:0;padding:0;}
+        .container{max-width:500px;margin:30px auto;padding:0 15px;}
+        .card{background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:15px;}
+        input{width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:6px;}
+        button{padding:10px 14px;margin:5px 2px;border:none;border-radius:6px;background:#007bff;color:white;cursor:pointer;}
+        .btn-red{background:#dc3545;}
+        .hide{display:none;}
+        .item{padding:10px;border-bottom:1px solid #ddd;}
+        .item h4{margin-bottom:5px;}
+        .item p{color:#555;font-size:14px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card" id="loginPage">
+        <h3>登录</h3>
+        <input type="text" id="uid" placeholder="账号">
+        <input type="password" id="pwd" placeholder="密码">
+        <button onclick="login()">登录</button>
+    </div>
+    <div class="card hide" id="mainPage">
+        <button class="btn-red" onclick="logout()">退出登录</button>
+        <br><br>
+        <h3>新增记录</h3>
+        <input type="text" id="title" placeholder="标题">
+        <input type="text" id="content" placeholder="内容">
+        <button onclick="saveData()">保存</button>
+        <br><br>
+        <h3>查询</h3>
+        <input type="text" id="kw" placeholder="搜索标题">
+        <button onclick="search()">搜索</button>
+        <button onclick="getAll()">查询全部</button>
+        <!-- =========量子随机数自动生成模块【已更新后端】========= -->
+        <div style="border:1px solid #777; padding:18px; margin:20px 0; border-radius:8px;">
+            <h3>量子随机数生成器</h3>
+            <div style="margin-top:10px;">
+                <button id="calcBtn">自动生成7个号码</button>
+                <div id="showResult" style="margin:12px 0; font-size:18px; letter-spacing:2px;"></div>
+                <button id="saveToDbBtn" style="display:none;">保存到记录库</button>
+            </div>
+        </div>
+<script>
+let finalSeven = null;
+const calcBtn = document.querySelector('#calcBtn');
+const showResult = document.querySelector('#showResult');
+const saveToDbBtn = document.querySelector('#saveToDbBtn');
+// 后端地址，你的阿里云代理接口
+const API_URL = "http://47.237.213.145:3000/api/random";
+
+calcBtn.onclick = async function(){
+    saveToDbBtn.style.display = 'none';
+    showResult.innerText = "正在请求量子随机数接口...";
+    try{
+        const resp = await fetch(API_URL);
+        const body = await resp.json();
+        if(!body.success){
+            showResult.innerText = "接口调用失败：" + JSON.stringify(body);
+            return;
+        }
+        const rawArr = body.data;
+        const redNums = [];
+        // 取6个不重复1~33红球
+        while(redNums.length < 6){
+            const num = (rawArr.shift() % 33) + 1;
+            if(!redNums.includes(num)){
+                redNums.push(num);
+            }
+        }
+        redNums.sort((a,b)=>a-b); //红球从小到大排序
+        // 1个蓝球 1~16
+        const blueNum = (rawArr.shift() %16)+1;
+        finalSeven = [...redNums, blueNum];
+        showResult.innerText = `生成结果（红球排序+蓝球）：${finalSeven.join(" ")}`;
+        saveToDbBtn.style.display = "inline-block";
+    }catch(e){
+        showResult.innerText = "请求失败，请重试：" + e.message;
+        console.error(e);
+    }
+}
+saveToDbBtn.onclick = async function(){
+    if(!finalSeven) return;
+    document.getElementById('title').value = "量子随机号码";
+    document.getElementById('content').value = `7位序列：${finalSeven.join(",")}`;
+    saveData();
+}
+</script>
+        <!-- =========模块结束========= -->
+        <div id="list" style="margin-top:15px;"></div>
+    </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyAhksWXChQieWR4Ogs6FR2PuTP3yyjyPdw",
+    authDomain: "fir-001-f26d9.firebaseapp.com",
+    projectId: "fir-001-f26d9",
+    storageBucket: "fir-001-f26d9.firebasestorage.app",
+    messagingSenderId: "944028774180",
+    appId: "1:944028774180:web:3bf07903a20c52b6120db1"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const USER_ID = "1816561717";
+const USER_PWD = "xxx2351554";
+let dataList = [];
+function login() {
+    let id = document.getElementById("uid").value.trim();
+    let p = document.getElementById("pwd").value.trim();
+    if (id === USER_ID && p === USER_PWD) {
+        localStorage.setItem("login","ok");
+        showMain();
+    } else alert("账号密码错误");
+}
+function logout() {
+    localStorage.removeItem("login");
+    location.reload();
+}
+function showMain() {
+    document.getElementById("loginPage").classList.add("hide");
+    document.getElementById("mainPage").classList.remove("hide");
+}
+function saveData() {
+    let t = document.getElementById("title").value.trim();
+    let c = document.getElementById("content").value.trim();
+    if (!t || !c) return alert("标题和内容不能为空");
+    db.collection("items").add({
+        userId: USER_ID,
+        title: t,
+        content: c,
+        createTime: new Date()
+    }).then(()=>{
+        alert("保存成功");
+        document.getElementById("title").value="";
+        document.getElementById("content").value="";
+    });
+}
+function getAll() {
+    db.collection("items").where("userId","==",USER_ID).get().then(s=>{
+        dataList=[];
+        s.forEach(d=>dataList.push(d.data()));
+        render();
+    });
+}
+function search() {
+    let k = document.getElementById("kw").value.trim().toLowerCase();
+    db.collection("items").where("userId","==",USER_ID).get().then(s=>{
+        dataList=[];
+        s.forEach(d=>{
+            let dt=d.data();
+            if(dt.title.toLowerCase().includes(k)) dataList.push(dt);
+        });
+        render();
+    });
+}
+function render() {
+    let html="";
+    dataList.forEach(i=>{
+        html+=`<div class="item"><h4>${i.title}</h4><p>${i.content}</p></div>`;
+    });
+    document.getElementById("list").innerHTML=html;
+}
+window.onload=()=>{
+    if(localStorage.getItem("login")==="ok") showMain();
+};
+</script>
+</body>
+</html>
